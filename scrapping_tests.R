@@ -139,7 +139,7 @@ direct_match <- inner_join(votes_match, links_match, by = c("unres_match" = "COR
 session_pdf <-  bow("https://undocs.org")
 
 # Accesed and downloaded on June 23, 2021 (takes around 10 hours)
-aux_descarga <- direct_match %>% 
+first_download_log <- direct_match %>% 
   select(LINK, unres_match, UNSES) %>% 
   pmap_chr(
     ~ possibly_download_unga_resol(
@@ -148,4 +148,15 @@ aux_descarga <- direct_match %>%
       destfile = paste0(str_replace_all(..2,"\\/","_"), ".pdf"), 
       path = here("resol_pdf",paste0(str_pad(..3,2,"left",0))), 
       overwrite = TRUE)
-  )
+  ) %>% 
+  tibble(RESUL = .) %>% 
+  mutate(DATE = Sys.Date()) %>% 
+  bind_cols(select(direct_match,UNSES,unres_match,LINK),.)
+# Save not to lose progress
+save(first_download_log, 
+     file = here("resol_pdf", "00_logs", 
+                 paste0("first_download_log_", 
+                        max(first_download_log$DATE) %>% str_replace_all("-","_"),
+                        ".Rdata")
+                 )
+     )
