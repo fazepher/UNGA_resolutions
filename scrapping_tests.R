@@ -6,15 +6,24 @@ library(here)
 
 #### Functions ####
 
+# Function to obtain links for UNGA resolutions out of a session table
+# e.g. https://www.un.org/depts/dhl/resguide/r1_resolutions_table_eng.htm
+
+# Parameters: 
+# p: path of the UNGA Session table
+# s: {polite}'s webscrapping session
 tibble_links <- function(p, s){
   
+  # Scrape UN session table
   scrape_resul <-  nod(s, p) %>% 
     scrape() 
   
+  # Some tables are scraped in raw format, and thus have to be converted into html. 
   if("raw" %in% class(scrape_resul)){
     scrape_resul <- read_html(scrape_resul)
   }
   
+  # We are interested in the first colum of the table
   scrape_resul %>% 
     html_nodes("td:nth-child(1) a") %>% 
     map_dfr(function(y) 
@@ -23,24 +32,34 @@ tibble_links <- function(p, s){
     filter(!is.na(LINK))
 }
 
+# Use {purrr}'s possibly to identify errors without losing everything else
 possibly_tibble_links <- possibly(tibble_links,otherwise = NULL)
 
+# Function to download the pdf of a UNGA resolution
+# Parameters
+# s: {polite}'s webscrapping session
+# un_path: UN website path to where the embed pdf is located
+# ...: other arguments passed to {polite}'s rip. This notably include destfile, path, and overwrite. 
 download_unga_resol <- function(s, un_path, ...){
   
+  # Get full page
   pag_un <- s %>% 
     nod(un_path) 
   
+  # Obtain actual link to the pdf (since it is embed)
   link_pdf <- pag_un %>% 
     scrape() %>% 
     html_node(".embed-responsive-item") %>% 
     html_attr("src") 
   
+  # Download pdf
   pag_un %>% 
     nod(path = link_pdf) %>%
     rip(...)
   
 }
 
+# Use {purrr}'s possibly to identify errors without losing everything else
 possibly_download_unga_resol <- possibly(download_unga_resol, otherwise = "ERROR")
 
 
@@ -64,6 +83,9 @@ possibly_download_unga_resol <- possibly(download_unga_resol, otherwise = "ERROR
 # Loading completeVotes
 load(here("data_voeten","UNVotes-1.RData")) 
 
+# Only keep resolution level data for now. 
+# Taking care of changing the unres field to facilitate matches with UN identifiers 
+# since they always have the same format of A/RES/[...]
 votes_match <- completeVotes %>% 
   distinct(rcid, year, session, importantvote, date, 
            unres, amend, para, short, descr, 
@@ -76,18 +98,26 @@ votes_match <- completeVotes %>%
   
 #### UN webscrapping session ####
 
+# Accesed and downloaded on June 23, 2021
+# One first thing to notice is that the URLs format for English tables changed from around 2013.
 session_tables <- bow("https://www.un.org")
 list_tables <- paste0("depts/dhl/resguide/r",1:67,"_resolutions_table_eng.htm") %>% 
   c(paste0("depts/dhl/resguide/r",68:75,"_resolutions_table_en.htm"))
-map(~possible_tables(s = session_tables, p =.x))
 
-prueba_links <- seq_along(list_tables) %>% 
-  map_dfr(
-    ~ 
-      possibly_tibble_links(p = list_tables[.x], s = session_tables) %>% 
-      mutate(UNSES = .x))
+# Scrape all UNGA tables 
+table_links <- seq_along(list_tables) %>% 
+  map_dfr(~ possibly_tibble_links(p = list_tables[.x], s = session_tables) %>% 
+            mutate(UNSES = .x))
 
-links_match <- prueba_links %>% 
+# Prepare links for matching. Notably, we 
+# 1) Verify that all UN identifiers have the format "A/RES/[...]" 
+#     (errors found on sessions 60, 65, and 70).
+# 2) Check which Roman numerals within parenthesis, if any, are present.
+#     (these were found to be UNGA sessions 1-30)
+# 3) Make appropriate corrections to the UN identifier so that it has the format "A/RES/[S]/[...]"
+# 4) Remove rows incorrectly scraped as resolutions 
+#     (2 rows from UNGA session 70)
+links_match <- table_links %>% 
   mutate(ID_FAZH = str_pad(row_number(), 6,"left", 0),
          VERIF = str_sub(UNRES,1,6) == "A/RES/", 
          ROMANOS = str_extract(UNRES,"\\([IVXL]*\\)"),
@@ -108,6 +138,7 @@ direct_match <- inner_join(votes_match, links_match, by = c("unres_match" = "COR
 
 session_pdf <-  bow("https://undocs.org")
 
+# Accesed and downloaded on June 23, 2021 (takes around 10 hours)
 aux_descarga <- direct_match %>% 
   select(LINK, unres_match, UNSES) %>% 
   pmap_chr(
