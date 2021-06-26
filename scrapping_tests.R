@@ -85,16 +85,25 @@ load(here("data_voeten","UNVotes-1.RData"))
 
 # Only keep resolution level data for now. 
 # Taking care of changing the unres field to facilitate matches with UN identifiers 
-# since they always have the same format of A/RES/[...]
-votes_match <- completeVotes %>% 
+# since they always have the same format of A/RES/[S]/[NUM][...]
+votes_prematch <- completeVotes %>% 
   distinct(rcid, year, session, importantvote, date, 
            unres, amend, para, short, descr, 
            me, nu, di, hr, co, ec, 
            ident, resid) %>% 
   mutate(unres_match = if_else(str_detect(unres,"^R/"),
                                str_replace(unres,"^R/","A/RES/"),
-                               unres)) %>% 
-  relocate(unres_match,.after=unres)
+                               unres),
+         unres_base = str_extract(unres_match,"^A/RES/(\\d{1,2})/(\\d+)"),
+         unres_num = str_remove(unres_base, paste0("A/RES/",session,"/")) %>% as.numeric) %>% 
+  relocate(unres_match,.after=unres) %>% 
+  as_tibble()
+
+# Some votes don't have a base resolution, come from other sessions or have some different format
+votes_check_unres <- filter(votes_match, is.na(unres_num))
+
+# We keep, for now, only those matchable
+votes_match <- filter(votes_prematch, !is.na(unres_num))
   
 #### UN webscrapping session ####
 
@@ -115,7 +124,9 @@ table_links <- seq_along(list_tables) %>%
 # 2) Check which Roman numerals within parenthesis, if any, are present.
 #     (these were found to be UNGA sessions 1-30)
 # 3) Make appropriate corrections to the UN identifier so that it has the format "A/RES/[S]/[...]"
-# 4) Remove rows incorrectly scraped as resolutions 
+#     (additional corrections needed for some rows from UNGA sessions 30 and 40)
+# 4) Extract the resolution identifier "base" that is "A/RES/[S]/[NUM]" without letters
+# 5) Remove rows incorrectly scraped as resolutions 
 #     (2 rows from UNGA session 70)
 links_match <- table_links %>% 
   mutate(ID_FAZH = str_pad(row_number(), 6,"left", 0),
@@ -123,12 +134,16 @@ links_match <- table_links %>%
          ROMANOS = str_extract(UNRES,"\\([IVXL]*\\)"),
          CORR = case_when(VERIF ~ UNRES,
                           str_sub(UNRES,1,2) %in% c(">A","AA") ~ str_sub(UNRES,2),
-                          T ~ NA_character_) %>% 
-           {if_else(is.na(ROMANOS), .,
-                    str_remove(.,"\\([IVXL]*\\)") %>% 
-                      str_replace("^A/RES", paste0("A/RES/",UNSES)))}
-         
-         ) %>%
+                          T ~ NA_character_),
+         CORR = if_else(is.na(ROMANOS), 
+                        CORR, 
+                        str_remove(CORR,"\\([IVXL]*\\)") %>%  
+                          str_replace("^A/RES", paste0("A/RES/",UNSES))) %>% 
+           str_trim(),
+         CORR = {if_else(str_detect(CORR, "/4 0/"), 
+                         str_replace(CORR, "/4 0/", "/40/"), 
+                         CORR)},
+         RES_BASE = str_extract(CORR,"^A/RES/(\\d{1,2})/(\\d+)")) %>%
   filter(!is.na(CORR)) 
 
 
