@@ -175,3 +175,46 @@ save(first_download_log,
                         ".Rdata")
                  )
      )
+
+#### UN no first match of resolutions ####
+
+first_match_votes <- inner_join(votes_match, links_match, by = c("unres_match" = "CORR")) %>% 
+  select(year,session,unres_num, resid,
+         unres,UNRES,unres_match, unres_base,
+         date, para, amend, LINK:ROMANOS) %>% 
+  arrange(desc(session), desc(unres_num)) 
+
+no_first_match_votes <- anti_join(votes_match, links_match, by = c("unres_match" = "CORR")) %>% 
+  select(year,session,unres_num, resid,
+         unres, unres_match, unres_base,
+         date, para, amend) %>% 
+  arrange(desc(session), desc(unres_num)) 
+
+# no_first_match_links <- anti_join(links_match, votes_match, by = c("CORR" = "unres_match"))
+
+left_join(votes_match, links_match, by = c("unres_base" = "RES_BASE")) %>% 
+  select(year,session,unres_num, resid,
+         unres,UNRES,unres_match,CORR,unres_base,
+         date, para, amend, LINK:ROMANOS) %>% 
+  mutate(MATCH_TOTAL = {unres_match == CORR},
+         LETRA = str_remove(unres_match,unres_base) %>% 
+           str_detect("[:upper::]*")) %>% 
+  arrange(desc(session), desc(unres_num)) %>% 
+  relocate(MATCH_TOTAL, .before = unres) %>% 
+  View()
+
+left_join(votes_match, links_match, by = c("unres_base" = "RES_BASE")) %>% 
+  mutate(MATCH_TOTAL = {unres_match == CORR},
+         LETRA = str_remove(unres_match,unres_base) %>% 
+           str_detect("[:upper::]*")) %>% 
+  group_by(session) %>% 
+  mutate(N_MATCH = sum(MATCH_TOTAL,na.rm = TRUE), 
+         N_SES = n(), 
+         PCT_MATCH = sum(MATCH_TOTAL, na.rm = TRUE)/n()) %>% 
+  group_by(resid) %>% 
+  mutate(N_MATCH_REG = n()) %>% 
+  ungroup() %>% 
+  arrange(desc(session), desc(N_MATCH_REG), MATCH_TOTAL, NUM) %>% 
+  relocate(session, N_MATCH, N_SES, PCT_MATCH, MATCH_TOTAL, N_MATCH_REG) %>% 
+  View()
+
