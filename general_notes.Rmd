@@ -1,0 +1,95 @@
+---
+title: "Dissertation Master Notes"
+author: "Fernando A. Zepeda Herrera"
+date: "7/5/2021"
+output:
+  pdf_document: default
+  html_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Project description as submitted
+
+Studying a given State’s Foreign Policy preferences is an important subject within the field of International Relations. In particular, we are interested in the evolution of Mexican Foreign Policy preferences. How consistent were Mexican positions under the competitive authoritarian PRI regime and how different were they from those of the democratic period in the XXIst century? Given the ideological differences between Mexican right-wing presidents and several of their Latin-American counterparts during the “Turn to the Left” in the region, did Mexican Foreign Policy drifted away from Latin America? Has the recent election of a populist president been reflected in changes in Foreign Policy and, if so, in which areas?
+
+The standard data source for measuring states preferences in foreign policy is the United Nations General Assembly votes (Voeten, 2013). However, efforts in this regard had been traditionally carried via similarity indexes until recently, when Bailey, Strezhnev, and Voeten (2017) introduced a dynamic ideal point model. Despite the important advancement this model represents, it has one major limitation. It consists of ideal points along a single dimension, namely a US-led liberality scale. This scale is insufficient if one wishes to explore questions such as those mentioned in the previous paragraph. In this regard, this dissertation project aims to contribute by proposing a statistically sound multidimensional extension. Specifically, we intend to leverage metadata of the votes, such as resolutions topics and texts following the work done in other contexts by Lauderdale and Clark (2014).
+
+## Main/General Goal
+
+Study the evolution of Mexican Foreign Policy in the United Nations General Assembly
+
+## Goal 0: Data cleaning
+
+#### First challenges encountered
+
+- Data preparation for all 75 UNGA sessions may not be available
+  - There are challenges to matching Voeten's data with UN web scrapping of resolutions
+  - Different codes used, paragraphs/amendments, extra sessions beyond General Assembly
+- **Conclusion: We must limit the timeframe for the analysis starting from present day and going back.**
+
+#### Minimum timeframe: 
+- UNGA sessions 55-75
+- These correspond to the years 2000-2020
+- There are some resolutions from 2021 but corresponding to the 75th session starting in 2020
+- This would comprehend the following presidential terms
+  - Vicente Fox Quesada (2000-2006, PAN)
+  - Felipe Calderón Hinojosa (2006-2012, PAN) 
+  - Enrique Peña Nieto (2012-2018, PRI)
+  - Andrés Manuel López Obrador (2018-current, MORENA)
+- This period includes 7 Foreign Relations Secretaries (i.e. Ministers)
+  - Jorge Castañeda Gutman (2000-2003, VFQ)
+  - Luis Ernesto Derbez (2003-2006, VFQ)
+  - Patricia Espinosa Cantellano (2006-2012, FCH)
+  - José Antonio Meade Kuribreña (2012-2015, EPN)
+  - Claudia Ruiz Massieu Salinas (2015-2017, EPN)
+  - Luis Videgaray Caso (2017-2018, EPN)
+  - Marcelo Ebrard Casaubón (2018-current, AMLO)
+- There have been 9 Permanent Representatives to the UN during this time (some for only a year)
+- Mexico has been part of 2 full Security Council periods (2002-2003, 2009-2010) and is currently on it (2021-2022)
+
+#### To do
+
+- Integrate raw data: 
+  - Voeten (2013) repository with voting data for sessions 1-75
+  - Web scrapping for sessions 55-75
+  - Read PDF into text
+- Finish cleaning scripts
+- Document data: 
+  - Finish Rmd
+  - Verify correct matching of new dataset with original raw Voeten (2013) data.
+
+## Goal 1: Model Foreign Policy Positions
+
+- **H1: There exist bridge resolutions in the UNGA** *so that it is possible to identify a dynamic IRT model*
+  - Detail what Bailey, Strezhnev, and Voeten (2017) call bridge resolutions, identify and verify them using resolution texts. 
+
+
+
+- **H2: Countries in the UNGA have foreign policy positions in several dimensions** *so that a single US-led liberality scale is insufficient to explain variability in UNGA votes*
+  - Bailey, Strezhnev, and Voeten (2017) argue for an IRT model instead of dyadic similarity measures. They provide one dimensional US-led liberality ideal points. But then, Bailey and Voeten (2018) argue for a 2 dimensional model for the UN. Similarly, in the context of the SCOTUS, Lauderdale and Clark (2014) argue for multidimensional modelling of votes. Detail these arguments, and maybe others, already present in the literature.
+  - Propose at least one multidimensional model and compare it to previous models of Bailey, Strezhnev, and Voeten (2017) and Bailey and Voeten (2018). This would require suitable measures of model selection such as AIC, BIC, WAIC or Bayes Factors.
+  - The first idea for a multidimensional model is to adapt Lauderdale's and Clark (2014) LDA model of SCOTUS opinions to UNGA resolutions. The key idea is to do LDA topic modelling on the texts upon which votes are based, and use the predicted topic proportions $\lambda_{j,d}$ of a given vote in the linear predictor of the IRT model, e.g. $\alpha_j + \beta_j\theta_{i,j}$ where $\theta_{i,j} = \sum\limits_{d=1}^D \lambda_{j,d}\theta_{i,d}$. 
+  
+
+## Goal 2: Consistency of Mexican Positions
+
+After doing the model selection we should have, for each year $t$ in the analysis a $d-$dimensional vector of Mexican foreign policy positions in the UNGA: $\theta_{t}^{MX} = (\theta_{t,1}^{MX}, \dots, \theta_{t,d}^{MX})$. We could use these time series to address the following hypotheses, in order of interest or importance (in part because of conceptual clarity):
+
+- **H3: Every Mexican President has had its own foreign policy positions**
+- **H3.1: AMLO's positions are different than those of the previous presidents from PAN and PRI**
+  - Change-point detection
+  - Multilevel model in Goal 1
+
+
+- **H4: Mexico changes its Permanent Representative to the UN due to a change in foreign policy positions**
+
+- **H5: Those dimensions associated with Mexico's Foreign Policy Constitutional Principles have been the most consistent, regardless of the President**
+
+## Goal 3: Mexico and Latin America
+
+- **H6: Mexico's foreign policy positions were different from those of other Latin American countries during the left-wing wave.**
+  - There is a common notion (provide lit rev) that around 1999-2015 there was a "left-wing wave" in Latin American politics, in which countries such as Venezuela, Brazil, Argentina, Bolivia, Ecuador, Peru, Cuba, among others, had leftist and aligned countries. Mexico didn't participate on it, given the more right-wing characters of Fox, Calderón, and Peña Nieto. It would be interesting to explore how isolated or different Mexican foreign policy positions were from other latinamerican countries. 
