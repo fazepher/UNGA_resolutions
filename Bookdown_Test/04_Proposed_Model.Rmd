@@ -1,0 +1,50 @@
+# Proposed Model 
+
+In the application for foreign policy ideal points we would like to extend the model of [@Lauderdale.Clark14] with an application to UNGA resolutions. 
+
+## IRT Terminolog equivalence
+
+In the terminology of IRT we have abilities in dimensions for respondents, items as questions, and answers as pairs of a given respondent and item. Lauderdale and Clark (LC) have justices (respondents), opinions of the court (items), and votes (answer/pair). We would have countries, resolutions, and votes. While our votes are polytomous (yea, abstain, nay), we will dichotomize first (vote yes, vote abstain or nay). The dimensions in IRT are associated with topics extracted from the topic modelling of the items: that is opinions for LC and resolutions in our case. 
+
+LC introduce the Topic Modeling parameter matrix $\Lambda$ that we could call the dimension or topic mixture proportions. We have, for each item/opinion/resolution a $\lambda_i = (\lambda_{i,1},\lambda_{i,2}, \dots, \lambda_{i,D})$ row vector of proportions that correspond to each of the $D$ topics or dimensions. They sum to 1 for each row: $1 = \sum_d \lambda_{i,d}$ for all $i$. These are the parameters coming from LDA or CTM and are point estimators that will be considered as fixed data from here on. 
+
+## LC model
+
+I think there are two (initial) ways of seeing the LC model. One is as an extension of the Normal Ogive MIRT in which they decouple the item parameters. Another one is to say they have a Normal Ogive model in which each answer/vote has its own single dimension which is constructed from a given mixture of topic dimensions and justices positions. 
+
+So, this is the Normal Ogive MIRT
+
+$$p_k = P(Y_k = 1 | \theta, \alpha, \beta) = \Phi\left[ \alpha_{i[k]} + \beta_{i[k],1}\theta_{j[k],1} + \beta_{i[k],2}\theta_{j[k],2} + \dots + \beta_{i[k],D}\theta_{j[k],D}\right]$$
+
+LC instead decouples the item parameters as
+
+$$\beta_{i,d} = \beta_{i}\lambda_{i,d}$$
+
+so that the new model is
+
+$$p_k = P(Y_k = 1 | \theta, \alpha, \beta, \Lambda) = \Phi\left[ \alpha_{i[k]} +\sum\limits_{d = 1}^D \beta_{i[k]}\;\lambda_{i[k],d}\;\theta_{j[k],d}\right]$$
+
+The second way of viewing the LC model is to think of each answer as having its own "mixed" dimension with a typical Normal Ogive unidimensional form: 
+
+$$p_k = P(Y_k = 1 | \theta, \alpha, \beta, \Lambda) = \Phi\left[ \alpha_{i[k]} +\beta_{i[k]}\tilde{\theta}_{k}\right]$$
+where each answer-specific dimension is a "mixture" of the person positions on the $D$ topic dimensions according to the topic proportions $\lambda$. 
+$$\tilde{\theta}_{k} = \sum\limits_{d = 1}^D \lambda_{i[k],d}\;\theta_{j[k],d}$$
+
+## Proposed extension
+
+Theirs is a static model, but in order to explore the evolution of Mexican foreign policy positions we need a dynamic model. So far, my first idea for what seems to me as a natural dynamic extension is the following: 
+
+$$Y_k|\theta, b \overset{ind}{\sim} Ber(p_k)$$
+for all $k = 1, 2, \dots, K$, where 
+$$p_k = P(Y_k = 1 | \Theta, \alpha, \beta, \Lambda) = \Phi\left[ \alpha_{i[k]} +\beta_{i[k]}\tilde{\theta}_{k}\right].$$
+Here, the $\alpha_{i[k]}$ and $\beta_{i[k]}$ define one intercept and one coefficient for each of the $I$ resolutions. Each country then has their own pseudo-position, $\tilde{\theta}_{k}$, for a given resolution and it is defined as
+$$\tilde{\theta}_{k} = \sum\limits_{d = 1}^D \lambda_{i[k],d}\;\theta_{j[k],t[k],d}.$$
+Where $\lambda_{i[k],d}$ are the topic mixture proportions of the resolution and $\theta_{j[k],t[k],d}$ the country's position on the topic dimensions at the time of the resolution. These positions evolve in time via
+$$\theta_{j,t,d} = \theta_{j, t - 1, d} + \epsilon_{j,d}$$
+from a given starting point $\theta_{j, 0, d}$ and country-dimensional evolution shocks $\epsilon_{j,d}$. 
+
+Some reflections that I still need to address: 
+
+  - What are the general identifiability problems. I think that the $\lambda$ data help with the identification issues but I'm not sure how much. My logic is that the specific values of a resolution help with the relative positioning of resolutions between them. We could arbitrarily set Mexico's positions at the origin of the $D$-dimensional space at time $0$ and set the intercept of one resolution also as $0$, but I'm not sure if that is enough. I know that the eventual prior distributions could help with this issue, but I think it's best to address it in a more principled way. Both [@Bafumi.etal05] and [@Lauderdale.Clark14] cite a Douglas Rivers 2003 working paper entitled "Identification of Multidimensional Spatial Voting Models" that I don't seem able to find because it is unpublished. What would other good references on this topic are there. For example, [@SanMartin16] only talks about one-dimensional IRT models but it does go to great lengths at explaining several issues and proposing identifiability constraints. 
+  - Should evolution shocks be pooled accross countries and dimensions? That is, for example, $\epsilon_{j,d} \overset{iid}{\sim} N(0,\sigma_\epsilon^2)$ for all $j, d$? *A priori* I would think that different countries and may have different evolution dynamics so that maybe each country's $d$ dimension evolutions should come from the same distribution but different countries should have different distributions. This may have an effect also on identification. 
+  - We could also have a multivariate normal representation of evolutions. At first one could have independent evolutions but perhaps it is possible to allow for correlated evolutions for a given country across dimensions under the logic that if one country changes positions in one dimension it would be likely that it also changed its positions on other dimensions. Once again, I have some doubts as to what this would mean in terms of identification constraints. 

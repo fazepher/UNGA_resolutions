@@ -9,11 +9,7 @@ output:
 bibliography: UNGA_resolutions.bib
 ---
 
-# Probando Bookdown
-
-Hola hola. Probando, 1, 2, 3. 
-
-Esta es mi prueba para hacer un libro con bookdown. 
+# Introduction
 
 ```{r}
 knitr::opts_chunk$set(eval = FALSE)

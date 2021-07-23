@@ -4,11 +4,11 @@
 
   <meta charset="utf-8" />
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-  <title>6 References | Multidimensional Ideal Points of Mexican Foreign Policy at the UNGA</title>
-  <meta name="description" content="6 References | Multidimensional Ideal Points of Mexican Foreign Policy at the UNGA" />
+  <title>5 Proposed Model | Multidimensional Ideal Points of Mexican Foreign Policy at the UNGA</title>
+  <meta name="description" content="5 Proposed Model | Multidimensional Ideal Points of Mexican Foreign Policy at the UNGA" />
   <meta name="generator" content="bookdown 0.22 and GitBook 2.6.7" />
 
-  <meta property="og:title" content="6 References | Multidimensional Ideal Points of Mexican Foreign Policy at the UNGA" />
+  <meta property="og:title" content="5 Proposed Model | Multidimensional Ideal Points of Mexican Foreign Policy at the UNGA" />
   <meta property="og:type" content="book" />
   
   
@@ -16,7 +16,7 @@
   
 
   <meta name="twitter:card" content="summary" />
-  <meta name="twitter:title" content="6 References | Multidimensional Ideal Points of Mexican Foreign Policy at the UNGA" />
+  <meta name="twitter:title" content="5 Proposed Model | Multidimensional Ideal Points of Mexican Foreign Policy at the UNGA" />
   
   
   
@@ -30,8 +30,8 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black" />
   
   
-<link rel="prev" href="proposed-model.html"/>
-
+<link rel="prev" href="item-response-theory.html"/>
+<link rel="next" href="references.html"/>
 <script src="libs/header-attrs-2.9.1/header-attrs.js"></script>
 <script src="libs/jquery-2.2.3/jquery.min.js"></script>
 <link href="libs/gitbook-2.6.7/css/style.css" rel="stylesheet" />
@@ -211,55 +211,46 @@ div.csl-indent {
           <div class="page-inner">
 
             <section class="normal" id="section-">
-<div id="references" class="section level1" number="6">
-<h1><span class="header-section-number">6</span> References</h1>
+<div id="proposed-model" class="section level1" number="5">
+<h1><span class="header-section-number">5</span> Proposed Model</h1>
+<p>In the application for foreign policy ideal points we would like to extend the model of <span class="citation">(Lauderdale and Clark 2014)</span> with an application to UNGA resolutions.</p>
+<div id="irt-terminolog-equivalence" class="section level2" number="5.1">
+<h2><span class="header-section-number">5.1</span> IRT Terminolog equivalence</h2>
+<p>In the terminology of IRT we have abilities in dimensions for respondents, items as questions, and answers as pairs of a given respondent and item. Lauderdale and Clark (LC) have justices (respondents), opinions of the court (items), and votes (answer/pair). We would have countries, resolutions, and votes. While our votes are polytomous (yea, abstain, nay), we will dichotomize first (vote yes, vote abstain or nay). The dimensions in IRT are associated with topics extracted from the topic modelling of the items: that is opinions for LC and resolutions in our case.</p>
+<p>LC introduce the Topic Modeling parameter matrix <span class="math inline">\(\Lambda\)</span> that we could call the dimension or topic mixture proportions. We have, for each item/opinion/resolution a <span class="math inline">\(\lambda_i = (\lambda_{i,1},\lambda_{i,2}, \dots, \lambda_{i,D})\)</span> row vector of proportions that correspond to each of the <span class="math inline">\(D\)</span> topics or dimensions. They sum to 1 for each row: <span class="math inline">\(1 = \sum_d \lambda_{i,d}\)</span> for all <span class="math inline">\(i\)</span>. These are the parameters coming from LDA or CTM and are point estimators that will be considered as fixed data from here on.</p>
+</div>
+<div id="lc-model" class="section level2" number="5.2">
+<h2><span class="header-section-number">5.2</span> LC model</h2>
+<p>I think there are two (initial) ways of seeing the LC model. One is as an extension of the Normal Ogive MIRT in which they decouple the item parameters. Another one is to say they have a Normal Ogive model in which each answer/vote has its own single dimension which is constructed from a given mixture of topic dimensions and justices positions.</p>
+<p>So, this is the Normal Ogive MIRT</p>
+<p><span class="math display">\[p_k = P(Y_k = 1 | \theta, \alpha, \beta) = \Phi\left[ \alpha_{i[k]} + \beta_{i[k],1}\theta_{j[k],1} + \beta_{i[k],2}\theta_{j[k],2} + \dots + \beta_{i[k],D}\theta_{j[k],D}\right]\]</span></p>
+<p>LC instead decouples the item parameters as</p>
+<p><span class="math display">\[\beta_{i,d} = \beta_{i}\lambda_{i,d}\]</span></p>
+<p>so that the new model is</p>
+<p><span class="math display">\[p_k = P(Y_k = 1 | \theta, \alpha, \beta, \Lambda) = \Phi\left[ \alpha_{i[k]} +\sum\limits_{d = 1}^D \beta_{i[k]}\;\lambda_{i[k],d}\;\theta_{j[k],d}\right]\]</span></p>
+<p>The second way of viewing the LC model is to think of each answer as having its own “mixed” dimension with a typical Normal Ogive unidimensional form:</p>
+<p><span class="math display">\[p_k = P(Y_k = 1 | \theta, \alpha, \beta, \Lambda) = \Phi\left[ \alpha_{i[k]} +\beta_{i[k]}\tilde{\theta}_{k}\right]\]</span>
+where each answer-specific dimension is a “mixture” of the person positions on the <span class="math inline">\(D\)</span> topic dimensions according to the topic proportions <span class="math inline">\(\lambda\)</span>.
+<span class="math display">\[\tilde{\theta}_{k} = \sum\limits_{d = 1}^D \lambda_{i[k],d}\;\theta_{j[k],d}\]</span></p>
+</div>
+<div id="proposed-extension" class="section level2" number="5.3">
+<h2><span class="header-section-number">5.3</span> Proposed extension</h2>
+<p>Theirs is a static model, but in order to explore the evolution of Mexican foreign policy positions we need a dynamic model. So far, my first idea for what seems to me as a natural dynamic extension is the following:</p>
+<p><span class="math display">\[Y_k|\theta, b \overset{ind}{\sim} Ber(p_k)\]</span>
+for all <span class="math inline">\(k = 1, 2, \dots, K\)</span>, where
+<span class="math display">\[p_k = P(Y_k = 1 | \Theta, \alpha, \beta, \Lambda) = \Phi\left[ \alpha_{i[k]} +\beta_{i[k]}\tilde{\theta}_{k}\right].\]</span>
+Here, the <span class="math inline">\(\alpha_{i[k]}\)</span> and <span class="math inline">\(\beta_{i[k]}\)</span> define one intercept and one coefficient for each of the <span class="math inline">\(I\)</span> resolutions. Each country then has their own pseudo-position, <span class="math inline">\(\tilde{\theta}_{k}\)</span>, for a given resolution and it is defined as
+<span class="math display">\[\tilde{\theta}_{k} = \sum\limits_{d = 1}^D \lambda_{i[k],d}\;\theta_{j[k],t[k],d}.\]</span>
+Where <span class="math inline">\(\lambda_{i[k],d}\)</span> are the topic mixture proportions of the resolution and <span class="math inline">\(\theta_{j[k],t[k],d}\)</span> the country’s position on the topic dimensions at the time of the resolution. These positions evolve in time via
+<span class="math display">\[\theta_{j,t,d} = \theta_{j, t - 1, d} + \epsilon_{j,d}\]</span>
+from a given starting point <span class="math inline">\(\theta_{j, 0, d}\)</span> and country-dimensional evolution shocks <span class="math inline">\(\epsilon_{j,d}\)</span>.</p>
+<p>Some reflections that I still need to address:</p>
+<ul>
+<li>What are the general identifiability problems. I think that the <span class="math inline">\(\lambda\)</span> data help with the identification issues but I’m not sure how much. My logic is that the specific values of a resolution help with the relative positioning of resolutions between them. We could arbitrarily set Mexico’s positions at the origin of the <span class="math inline">\(D\)</span>-dimensional space at time <span class="math inline">\(0\)</span> and set the intercept of one resolution also as <span class="math inline">\(0\)</span>, but I’m not sure if that is enough. I know that the eventual prior distributions could help with this issue, but I think it’s best to address it in a more principled way. Both <span class="citation">(Bafumi et al. 2005/ed)</span> and <span class="citation">(Lauderdale and Clark 2014)</span> cite a Douglas Rivers 2003 working paper entitled “Identification of Multidimensional Spatial Voting Models” that I don’t seem able to find because it is unpublished. What would other good references on this topic are there. For example, <span class="citation">(San Martín 2016)</span> only talks about one-dimensional IRT models but it does go to great lengths at explaining several issues and proposing identifiability constraints.</li>
+<li>Should evolution shocks be pooled accross countries and dimensions? That is, for example, <span class="math inline">\(\epsilon_{j,d} \overset{iid}{\sim} N(0,\sigma_\epsilon^2)\)</span> for all <span class="math inline">\(j, d\)</span>? <em>A priori</em> I would think that different countries and may have different evolution dynamics so that maybe each country’s <span class="math inline">\(d\)</span> dimension evolutions should come from the same distribution but different countries should have different distributions. This may have an effect also on identification.</li>
+<li>We could also have a multivariate normal representation of evolutions. At first one could have independent evolutions but perhaps it is possible to allow for correlated evolutions for a given country across dimensions under the logic that if one country changes positions in one dimension it would be likely that it also changed its positions on other dimensions. Once again, I have some doubts as to what this would mean in terms of identification constraints.</li>
+</ul>
 
-<div id="refs" class="references csl-bib-body hanging-indent">
-<div class="csl-entry">
-Albert, James H. 2016. <span>“Logit, <span>Probit</span>, and <span>Other Response Functions</span>.”</span> In <em>Handbook of <span>Item Response Theory</span></em>. <span>Chapman and Hall/CRC</span>.
-</div>
-<div class="csl-entry">
-Bafumi, Joseph, Andrew Gelman, David K. Park, and Noah Kaplan. 2005/ed. <span>“Practical <span>Issues</span> in <span>Implementing</span> and <span>Understanding Bayesian Ideal Point Estimation</span>.”</span> <em>Political Analysis</em> 13 (2): 171–87. <a href="https://doi.org/10.1093/pan/mpi010">https://doi.org/10.1093/pan/mpi010</a>.
-</div>
-<div class="csl-entry">
-Bailey, Michael A., Anton Strezhnev, and Erik Voeten. 2017. <span>“Estimating <span>Dynamic State Preferences</span> from <span>United Nations Voting Data</span>.”</span> <em>Journal of Conflict Resolution</em> 61 (2): 430–56. <a href="https://doi.org/10.1177/0022002715595700">https://doi.org/10.1177/0022002715595700</a>.
-</div>
-<div class="csl-entry">
-Baker, Frank B., and Seock-Ho Kim. 2017. <em>The <span>Basics</span> of <span>Item Response Theory Using R</span></em>. Statistics for <span>Social</span> and <span>Behavioral Sciences</span>. <span>Cham</span>: <span>Springer International Publishing</span>. <a href="https://doi.org/10.1007/978-3-319-54205-8">https://doi.org/10.1007/978-3-319-54205-8</a>.
-</div>
-<div class="csl-entry">
-Kurtas, Susan. n.d.a. <span>“Research <span>Guides</span>: <span>UN Documentation</span>: <span>General Assembly</span>: <span>Resolutions</span> &amp; <span>Decisions</span>.”</span> Research Guide. https://research.un.org/en/docs/ga/resolutions; <span>United Nations. Dag Hammarskjöld Library</span>.
-</div>
-<div class="csl-entry">
-———. n.d.b. <span>“Research <span>Guides</span>: <span>UN Documentation</span>: <span>Overview</span>: <span>Resolutions</span> &amp; <span>Decisions</span>.”</span> Research Guide. https://research.un.org/en/docs/resolutions; <span>United Nations. Dag Hammarskjöld Library</span>.
-</div>
-<div class="csl-entry">
-Lauderdale, Benjamin E., and Tom S. Clark. 2014. <span>“Scaling <span>Politically Meaningful Dimensions Using Texts</span> and <span>Votes</span>.”</span> <em>American Journal of Political Science</em> 58 (3): 754–71.
-</div>
-<div class="csl-entry">
-Linden, Wim J. van der. 2016a. <span>“Introduction.”</span> In <em>Handbook of <span>Item Response Theory</span>, <span>Volume One</span></em>. <span>Chapman and Hall/CRC</span>.
-</div>
-<div class="csl-entry">
-———, ed. 2016b. <em>Handbook of <span>Item Response Theory</span>, <span>Volume One</span>: <span>Models</span></em>. <span>New York</span>: <span>Chapman and Hall/CRC</span>. <a href="https://doi.org/10.1201/9781315374512">https://doi.org/10.1201/9781315374512</a>.
-</div>
-<div class="csl-entry">
-Nations, United. 2021. <span>“Main <span>Committees</span> of the <span>General Assembly</span> of the <span>United Nations</span>.”</span> https://www.un.org/en/ga/maincommittees/index.shtml; <span>United Nations</span>.
-</div>
-<div class="csl-entry">
-Reckase, M. D. 2009. <em>Multidimensional <span>Item Response Theory</span></em>. <span>New York, NY</span>: <span>Springer New York</span>. <a href="https://doi.org/10.1007/978-0-387-89976-3">https://doi.org/10.1007/978-0-387-89976-3</a>.
-</div>
-<div class="csl-entry">
-Reckase, Mark D. 2016. <span>“Logistic <span>Multidimensional Models</span>.”</span> In <em>Handbook of <span>Item Response Theory</span>, <span>Volume One</span></em>. <span>Chapman and Hall/CRC</span>.
-</div>
-<div class="csl-entry">
-San Martín, Ernesto. 2016. <span>“Identification of <span>Item Response Theory Models</span>.”</span> In <em>Handbook of <span>Item Response Theory</span></em>. <span>Chapman and Hall/CRC</span>.
-</div>
-<div class="csl-entry">
-Swaminathan, Hariharan, and H. Jane Rogers. 2016. <span>“Normal-<span>Ogive Multidimensional Models</span>.”</span> In <em>Handbook of <span>Item Response Theory</span>, <span>Volume One</span></em>. <span>Chapman and Hall/CRC</span>.
-</div>
-<div class="csl-entry">
-Voeten, Erik, Anton Strezhnev, and Michael Bailey. 2021. <span>“United <span>Nations General Assembly Voting Data</span>.”</span> <span>Harvard Dataverse</span>. <a href="https://doi.org/10.7910/DVN/LEJUQZ">https://doi.org/10.7910/DVN/LEJUQZ</a>.
-</div>
 </div>
 </div>
             </section>
@@ -267,8 +258,8 @@ Voeten, Erik, Anton Strezhnev, and Michael Bailey. 2021. <span>“United <span>N
           </div>
         </div>
       </div>
-<a href="proposed-model.html" class="navigation navigation-prev navigation-unique" aria-label="Previous page"><i class="fa fa-angle-left"></i></a>
-
+<a href="item-response-theory.html" class="navigation navigation-prev " aria-label="Previous page"><i class="fa fa-angle-left"></i></a>
+<a href="references.html" class="navigation navigation-next " aria-label="Next page"><i class="fa fa-angle-right"></i></a>
     </div>
   </div>
 <script src="libs/gitbook-2.6.7/js/app.min.js"></script>
