@@ -1,0 +1,412 @@
+# Data 
+
+## General Assembly Session Compilation
+
+According to the [Dag Hammarskjöld Library](https://research.un.org/en/docs/ga/resolutions) website [@Kurtas]: 
+
+> For each session of the General Assembly, resolutions and decisions are compiled and issued as a supplement to the General Assembly Official Records (GAOR) [...] For regular sessions, starting with the 42nd session, the document has been assigned number 49, and is Supplement 49 to the GAOR. Currently, there are usually 3 volumes
+
+As we are interested in *resolutions*, we would need volumes I and III which contain, respectively, those adopted by the GA in the September-December and January-September periods of each regular session. These documents are identified by their symbols `A/[Sess.N.]/49Vol(I.)` or `A/[Sess.N.]/49Vol(III.)`, where `[Sess.N.]` is a placeholder for the session number. For example, the resolutions for the 74th session, adopted between September and December 2019 would be compiled in the document `A/74/49Vol(I.)` and found at [https://undocs.org/en/A/74/49(Vol.I)](https://undocs.org/en/A/74/49(Vol.I)). 
+
+### Download and Import
+
+Starting from the 67th session of the UNGA, there is a common machine readable format for these pdf. This allows us to download them (in a folder named `resol_pdf`) and import them separately into `R` each as a character vector with one element per document page. 
+
+```{r}
+vol_1_all <- list.files(here("resol_pdf")) %>% 
+  keep(~str_detect(.x,"Vol.I\\)")) %>% 
+  rev() %>% 
+  map(~pdf_text(here("resol_pdf",.x)))
+
+vol_3_all <- list.files(here("resol_pdf")) %>% 
+  keep(~str_detect(.x,"Vol.III\\)")) %>% 
+  rev() %>% 
+  map(~pdf_text(here("resol_pdf",.x)))
+```
+
+We need two different lists, one for each type of volume since the respective document structures are slightly different. 
+
+For **Volume I** documents: 
+
+-   The first 4 pdf pages typically contain the cover, a note on resolutions and decisions, the main table of contents, and a blank page. Numbered pages thus start at pdf page 5. An exception is document `A/70/49(Vol.I)` where there is no such blank page and numbered pages start at pdf page 4. 
+
+-   The document then is split in its 7 main sections, each containing their own (sub) table of contents. Each section contains resolutions that refer to either none (first section) or one of the [6 main committees of the General Assambly](https://www.un.org/en/ga/maincommittees/index.shtml) [@UnitedNations21]:
+
+    1.  First Committee (Disarmament & International Security)
+    2.  Second Committee (Economic & Financial)
+    3.  Third Committee (Social, Humanitarian & Cultural)
+    4.  Fourth Committee (Special Political & Decolonization)
+    5.  Fifth Committee (Administrative & Budgetary)
+    6.  Sixth Committee (Legal)
+
+
+-   The document finishes with 2 annexes. 
+
+For **Volume III** documents: 
+
+-   The first 4 pdf pages follow the same pattern as Vol. I. documents. 
+
+-   The document then is split in its 4 main sections. We are only interested in the first 3 as they contain resolutions:
+
+    1.  Without reference to a Main Committee
+    2.  In relation to the Fourth Committee (Special Political & Decolonization)
+    3.  In relation to the Fifth Committee (Administrative & Budgetary)
+  
+  The 4th main section contains decissions of the General Assembly. 
+
+-   The document finishes with 2 annexes. 
+
+
+### Data cleaning
+
+We shall start parsing the pdfs by extracting their main table of contents via the following function: 
+
+```{r}
+extract_toc <- function(x, vol = 1){
+  
+  # We extract page 3 of the document x
+  raw_toc <- x[[3]] %>% 
+    str_split("\n") %>% 
+    unlist() %>% 
+    str_trim()
+  
+  # The section for the 4th Committee is expected to be divided between lines 
+  # We then extract the table for the main sections 
+  # We assume the first two lines are "Content" and "Section/Page"
+  # This is different depending on the volume
+  
+  if(vol == 1){
+    #  In volume 1
+    
+    #  The 4th Committee section is divided between lines 5 and 6 of the raw toc 
+    raw_toc[5] <- paste(raw_toc[5:6],collapse = " ")
+    raw_toc <- raw_toc[-6]
+    
+    # we have 7 main sections assuming (corrected) lines 3 to 9 
+    # we also identify the page where annexes start, assuming it's line 11
+    
+    clean_toc <- raw_toc[3:9] %>% 
+      str_split_fixed(pattern = "(\\.{2,})", n = 2) %>% 
+      as.data.frame() %>% 
+      tibble() %>% 
+      transmute(Section = str_trim(V1), 
+                Start_Page = str_trim(V2) %>% as.integer,
+                Annex_Page = str_extract(raw_toc[11],"\\d+$") %>% as.integer)
+    
+  } else {
+    #  In volume 3 
+    
+    #  The 4th Committee section is divided between lines 4 and 5 of the raw toc 
+    raw_toc[4] <- paste(raw_toc[4:5],collapse = " ")
+    raw_toc <- raw_toc[-5]
+    
+    # we have 3 main sections assuming (corrected) lines 3 to 5 
+    # we also identify the page where decisions start, assuming it's line 6
+    
+    clean_toc <- raw_toc[3:5] %>% 
+      str_split_fixed(pattern = "(\\.{2,})", n = 2) %>% 
+      as.data.frame() %>% 
+      tibble() %>% 
+      transmute(Section = str_trim(V1), 
+                Start_Page = str_trim(V2) %>% as.integer,
+                Annex_Page = str_extract(raw_toc[6],"\\d+$") %>% as.integer)
+  }
+  
+  return(clean_toc)
+  
+}
+```
+
+We then do a soft check on this table to ensure that the start pages effectively refer to the correct pages in the document. In short, we verify that each given start page has as an approximate header the corresponding section and that the preceding page doesn't. We want to identify if there is some section that doesn't satisfy these conditions. We define the following function to help us do that:
+
+```{r}
+soft_check_toc <- function(toc, shift = 4, all_pages = vol_1_all, n_check = 20){
+  toc %>% 
+    mutate(Soft_Check_Start = map_chr(Start_Page, 
+                                      ~ all_pages[.x + shift] %>% 
+                                        str_trim() %>% 
+                                        str_sub(end = n_check)) %>% 
+             equals(str_sub(Section, end = n_check)),
+           Soft_Check_Prev = map_chr(Start_Page, 
+                                     ~ all_pages[.x + shift - 1] %>% 
+                                       str_trim() %>% 
+                                       str_sub(end = n_check)) %>% 
+             equals(str_sub(Section, end = n_check)),
+           Soft_Check = Soft_Check_Start & !Soft_Check_Prev,
+           i = row_number()) %>% 
+    filter(!Soft_Check)
+}
+
+```
+
+We detect that there is indeed an error on one of the Vol. I documents, that of session 75. The problem upon visual inspection is a typo in the pdf and Section II should start on page 223 not 203. We manually correct it and see that there are no further mistakes risen at this soft checkpoint. 
+
+```{r}
+# Volume I
+
+vol_1_toc_check <- seq_along(vol_1_all) %>% 
+  map(~extract_toc(vol_1_all[[.x]], vol = 1) %>% 
+        mutate(Session = 76 - .x,
+               Year = 2021 - .x))
+
+seq_along(vol_1_toc_check) %>% 
+  map(~soft_check_toc(toc = vol_1_toc_check[[.x]],
+                      all_pages = vol_1_all[[.x]]))
+
+vol_1_toc_check[[1]]$Start_Page[2] <- 223
+soft_check_toc(toc = vol_1_toc_check[[6]], shift = 3, all_pages = vol_1_all[[6]])
+
+seq_along(vol_1_toc_check) %>% 
+  map(~soft_check_toc(toc = vol_1_toc_check[[.x]],
+                      shift = if_else(.x == 6, 3, 4),
+                      all_pages = vol_1_all[[.x]]))
+```
+
+There are no problems identified for Vol. III documents. 
+
+```{r}
+# Volume 3
+
+vol_3_toc_check <- seq_along(vol_3_all) %>% 
+  map(~extract_toc(vol_3_all[[.x]], vol = 3) %>% 
+        mutate(Session = 75 - .x,
+               Year = 2020 - .x))
+
+seq_along(vol_3_toc_check) %>% 
+  map(~soft_check_toc(toc = vol_3_toc_check[[.x]],
+                      all_pages = vol_3_all[[.x]]))
+```
+
+Once we are confident that we have identified correctly the starting pages of each section, we can also assign ending pages for each section and have our main table of contents object. Now, as said previously, each section contains a table of contents and the resolutions. In order to correctly parse resolution texts we will need to remove the headers and footers of the pages. These are usually the name of the section and the page number. We will thus be able to remove them programatically; there are, however, two exceptions that must be dealt with first. These are explained for Vol. I documents, but they are similar for Vol. III: 
+
+- The title of Section III is long enough that it's split in two lines on its own table of contents. We must make this a single line so that our removal function works correctly. 
+
+- The table of contents of Section VI contains a footnote that needs to be removed. It is signaled with a star `*` at the end of the title and that reads 
+    
+  > * Unless otherwise stated, the draft resolutions recommended in the reports were submitted by the Chair or another officer of the Bureau of the Committee.
+    
+  The star symbol may be registered differently depending on the specific pdf so we use regular expressions to find the correct patterns to remove. 
+
+```{r}
+# Volume I
+
+vol_1_toc <- vol_1_toc_check %>% 
+  map(~.x %>% 
+        mutate(End_Page = lead(Start_Page, default = unique(Annex_Page))-1) %>% 
+        select(Section, Session, Year, Start_Page, End_Page))
+
+vol_1_raw <- map(vol_1_all,str_trim)
+
+# The shift is different for session 69 since there is no blank page 4
+for(s in seq_along(vol_1_raw)){
+  print(s)
+  aux_i <- vol_1_toc[[s]]$Start_Page[3] + if_else(s == 6, 3, shift)
+  str_detect(string = vol_1_raw[[s]][aux_i], 
+             pattern = "(?<=Special Political)\n\\s*(?= and Decol)") %>% print
+  vol_1_raw[[s]][aux_i] <- str_remove(string = vol_1_raw[[s]][aux_i], 
+                                      pattern = "(?<=Special Political)\n\\s*(?= and Decol)")
+  
+  aux_i <- vol_1_toc[[s]]$Start_Page[6] + if_else(s == 6, 3, shift)
+  str_detect(string = vol_1_raw[[s]][aux_i], 
+             pattern = "_+\n(\\*||∗)\n*[[:print:]]*(?=\n\\s+\\d+$)") %>% print
+  str_detect(string = vol_1_raw[[s]][aux_i], 
+             pattern = "(?<=Committee)(\\*||∗)") %>% print
+  str_detect(string = vol_1_raw[[s]][aux_i], 
+             pattern = "(((?<=Page\n)(\\*||∗)\n)|((?<=number\n)(\\*||∗)\n))") %>% print
+  vol_1_raw[[s]][aux_i] <- str_remove(string = vol_1_raw[[s]][aux_i], 
+                                      pattern = "_+\n(\\*||∗)\n*[[:print:]]*(?=\n\\s+\\d+$)") %>% 
+    str_remove(pattern = "(?<=Committee)(\\*||∗)") %>% 
+    #There may be a hidden * or  at the top of the toc
+    str_remove(pattern = "(((?<=Page\n)(\\*||∗)\n)|((?<=number\n)(\\*||∗)\n))")
+}
+
+# Volume III
+
+vol_3_toc <- vol_3_toc_check %>% 
+  map(~.x %>% 
+        mutate(End_Page = lead(Start_Page, default = unique(Annex_Page))-1) %>% 
+        select(Section, Session, Year, Start_Page, End_Page))
+
+vol_3_raw <- map(vol_3_all,str_trim)
+
+for(s in seq_along(vol_3_raw)){
+  print(s)
+  aux_i <- vol_3_toc[[s]]$Start_Page[2] + shift
+  str_detect(string = vol_3_raw[[s]][aux_i],
+             pattern = paste0("(",
+                              "((?<=Special Political)\n\\s*(?= and Decol))",
+                              "|",
+                              "((?<=and Decolonization)\n\\s*(?= Committee ))",
+                              ")")) %>% print
+  vol_3_raw[[s]][aux_i] <- str_remove(string = vol_3_raw[[s]][aux_i],
+                                      pattern = paste0("(",
+                                                       "((?<=Special Political)\n\\s*(?= and Decol))",
+                                                       "|",
+                                                       "((?<=and Decolonization)\n\\s*(?= Committee ))",
+                                                       ")"))
+  
+  aux_i <- vol_3_toc[[s]]$Start_Page[3] + shift
+  str_detect(string = vol_3_raw[[s]][aux_i],
+             pattern = paste0("(",
+                              "_+\n(\\*||∗)\n*[[:print:]]*(?=\n\\s+\\d+$)",
+                              "|",
+                              "_+\n(\\*||∗)\n*[[:print:]]*\nCommittee\\.(?=\n\\s+\\d+$)",
+                              ")")) %>% print
+  str_detect(string = vol_3_raw[[s]][aux_i],
+             pattern = "(?<=Committee)(\\*||∗)") %>% print
+  str_detect(string = vol_3_raw[[s]][aux_i],
+             pattern = "(((?<=Page\n)(\\*||∗)\n)|((?<=number\n)(\\*||∗)\n))") %>% print
+  vol_3_raw[[s]][aux_i] <- str_remove(string = vol_3_raw[[s]][aux_i],
+                                      pattern = paste0("(",
+                                                       "_+\n(\\*||∗)\n*[[:print:]]*(?=\n\\s+\\d+$)",
+                                                       "|",
+                                                       "_+\n(\\*||∗)\n*[[:print:]]*\nCommittee\\.(?=\n\\s+\\d+$)",
+                                                       ")")) %>%
+    str_remove(pattern = "(?<=Committee)(\\*||∗)") %>%
+    #There may be a hidden * or  at the top of the toc
+    str_remove(pattern = "(((?<=Page\n)(\\*||∗)\n)|((?<=number\n)(\\*||∗)\n))")
+
+}
+
+```
+
+Once we have cleaned this exceptions we would programmatically remove headers and footers via the following function: 
+
+```{r}
+remove_header_footer <- function(raw_page, header){
+  
+  # Ensure we have a trimmed page
+  raw_page <- str_trim(raw_page)
+  
+  # Verify headers, if they don't match, return NA
+  end_header <- nchar(header)
+  check_header <- str_sub(string = raw_page, end = end_header) == header
+  end_header <- if_else(check_header, end_header, NA_integer_)
+  
+  # The footer is usually the document page on its own line, 
+  # The function returns NA if it doesn't locate this pattern.
+  start_footer <- str_locate(raw_page,"\n\\s*\\d+$")[,"start"]
+  
+  new_page <- str_sub(raw_page,start = end_header + 1, end = start_footer - 1) %>% 
+    unlist() %>% 
+    str_trim()
+  
+  return(new_page)
+  
+}
+```
+
+We can construct a `master_tibble` object that integrates, for each section and still in raw format, its own table of contents as well as all the resolutions. 
+
+```{r}
+vol_1_master_tibble <- seq_along(vol_1_toc) %>% 
+  map(function(s) vol_1_toc[[s]] %>% 
+        mutate(Raw_Pages = pmap(list(Start_Page, End_Page, Section),
+                                ~ vol_1_raw[[s]][..1:..2 + if_else(s == 6, 3, shift)] %>% 
+                                  discard(~.x == "") %>% 
+                                  remove_header_footer(paste0(..3,"\n"))),
+               First_Resol = map2_int(Raw_Pages,Session,
+                                      ~str_detect(.x,paste("^RESOLUTION",.y)) %>% 
+                                        which %>% 
+                                        min),
+               Section_toc = map2_chr(Raw_Pages,First_Resol,
+                                      ~.x[1:(.y-1)] %>% 
+                                        paste(collapse = "\n")),
+               Section_res = map2_chr(Raw_Pages,First_Resol,
+                                      ~.x[.y:length(.x)] %>% 
+                                        paste(collapse = "\n"))) %>% 
+        select(-Raw_Pages,-First_Resol))
+
+vol_3_master_tibble <- seq_along(vol_3_toc) %>% 
+  map(function(s) vol_3_toc[[s]] %>% 
+        mutate(Raw_Pages = pmap(list(Start_Page, End_Page, Section),
+                                ~ vol_3_raw[[s]][..1:..2 + shift] %>% 
+                                  discard(~.x == "") %>% 
+                                  remove_header_footer(paste0(..3,"\n"))),
+               First_Resol = map2_int(Raw_Pages,Session,
+                                      ~str_detect(.x,paste("^RESOLUTION",.y)) %>% 
+                                        which %>% 
+                                        min),
+               Section_toc = map2_chr(Raw_Pages,First_Resol,
+                                      ~.x[1:(.y-1)] %>% 
+                                        paste(collapse = "\n")),
+               Section_res = map2_chr(Raw_Pages,First_Resol,
+                                      ~.x[.y:length(.x)] %>% 
+                                        paste(collapse = "\n"))) %>% 
+        select(-Raw_Pages,-First_Resol))
+```
+
+#### Resolution Texts
+
+Once we separated the table of contents from the resolution texts we can parse them. A key observation is that each resolution is signaled by an upper letter heading such as **RESOLUTION 75/1**, **RESOLUTIONS 75/101 A and B** or **RESOLUTIONS 75/254 A-C** depending on whether it's a standalone resolution or it has two or more subresolutions. Then, each resolution contains metadata on it's adoption such as session, date, voting data, or sponsorship. The actual resolutions start by it's resolution number and a period on its own line (e.g. 75/1.). We use these patterns to separate all resolutions and identify the text as well as the metadata. 
+
+```{r}
+vol_1_resol_text_df <- vol_1_master_tibble %>% 
+  map_dfr(~ .x$Section_res %>% 
+            paste(collapse = "\n") %>% 
+            str_split(pattern = "(?=RESOLUTION)") %>% 
+            unlist %>% 
+            tibble(Resolution_Text = .) %>% 
+            slice(-1) %>% 
+            separate(col = Resolution_Text, into = c("Resolution_Header","Aux"), 
+                     sep="\n", extra = "merge") %>% 
+            mutate(UNRES = str_extract(Resolution_Header,"\\d+/\\d+"), 
+                   Aux = str_trim(Aux),
+                   Aux_Pos = map2(Aux,UNRES,~str_locate(.x, pattern = paste0(.y,"\\.\\s+"))), 
+                   Start_Pos = map_int(Aux_Pos,~.x[1,"start"]), 
+                   End_Pos = map_int(Aux_Pos,~.x[1,"end"]), 
+                   Resol_Meta = map2_chr(Aux,Start_Pos,~str_sub(.x,end = .y - 1)), 
+                   Resol_Text = map2_chr(Aux,End_Pos, ~ str_sub(.x,start = .y + 1)),
+                   Resol_Text_WPOP = Resol_Text %>% 
+                     str_remove_all("(?<=\n)\\s+[A-Z][a-z]*ing") %>% 
+                     str_remove_all("(?<=\n)\\s+\\d+\\.\\s+[A-Z][a-z]*")) %>% 
+            select(UNRES,Resol_Meta,Resol_Text,Resol_Text_WPOP))
+
+# Double check hidden characters and RES/73/293
+vol_3_resol_text_df <- vol_3_master_tibble %>% 
+  map_dfr(~ .x$Section_res %>% 
+            paste(collapse = "\n") %>% 
+            str_split(pattern = "(?=RESOLUTION)") %>% 
+            unlist %>% 
+            tibble(Resolution_Text = .) %>% 
+            slice(-1) %>% 
+            separate(col = Resolution_Text, into = c("Resolution_Header","Aux"), 
+                     sep="\n", extra = "merge") %>% 
+            mutate(UNRES = str_extract(Resolution_Header,"\\d+/\\d+"), 
+                   Aux = str_trim(Aux),
+                   Aux_Pos = map2(Aux,UNRES,~str_locate(.x, pattern = paste0(.y,"\\.\\s+"))), 
+                   Start_Pos = map_int(Aux_Pos,~.x[1,"start"]), 
+                   End_Pos = map_int(Aux_Pos,~.x[1,"end"]), 
+                   Resol_Meta = map2_chr(Aux,Start_Pos,~str_sub(.x,end = .y - 1)), 
+                   Resol_Text = map2_chr(Aux,End_Pos, ~ str_sub(.x,start = .y + 1)),
+                   Resol_Text_WPOP = Resol_Text %>% 
+                     str_remove_all("(?<=\n)\\s+[A-Z][a-z]*ing") %>% 
+                     str_remove_all("(?<=\n)\\s+\\d+\\.\\s+[A-Z][a-z]*")) %>% 
+            select(UNRES,Resol_Meta,Resol_Text,Resol_Text_WPOP))
+```
+
+There is, however, a last cleaning in the column `Resol_Text_WPOP`. This name referes to resolution texts *without preambulatory and operative phrases*. These are common phrases that are always present in UNGA resolutions since they indicate the structure explained [here](https://research.un.org/en/docs/resolutions) [@Kurtasa]. As the next step in the analysis will be text mining, we could consider all these phrases as noise within the UNGA context so it is useful to have two versions of the resolutions, one without them and one original that keeps them. 
+
+We have now completed the main process of data cleaning, we can join all the resolutions and save the data.
+
+```{r}
+resol_text_df <- bind_rows(mutate(vol_1_resol_text_df, Vol = "1"),
+                           mutate(vol_3_resol_text_df, Vol = "3")) %>% 
+  mutate(ID_FAZH = paste(Vol,UNRES,sep="/"))
+
+save(resol_text_df, file = here("resol_data","resol_text_df.RData"))
+
+```
+
+
+## Voting Data
+
+**FALTA EXPLICAR DATOS DE VOTOS**
+
+While we could parse voting data from the metadata of resolutions in the compilation pdfs. We can recover an already processed data set on voting records for the UNGA [@Voeten.etal21]: 
+
+Accesed and downloaded on June 15, 2021
+available at https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/LEJUQZ
+
+  - Erik Voeten, "Data and Analyses of Voting in the UN General Assembly" Routledge Handbook of International Organization, edited by Bob Reinalda (published May 27, 2013)
+  - Bailey, Michael A., Anton Strezhnev, and Erik Voeten. 2017. Estimating dynamic state preferences from united nations voting data. Journal of Conflict Resolution 61 (2): 430-56.

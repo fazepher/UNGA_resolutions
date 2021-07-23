@@ -1,0 +1,22 @@
+---
+title: "Multidimensional Ideal Points of Mexican Foreign Policy at the UNGA"
+author: "Fernando A. Zepeda Herrera"
+site: bookdown::bookdown_site
+documentclass: book
+output:
+  bookdown::gitbook: default
+  #bookdown::pdf_book: default
+bibliography: UNGA_resolutions.bib
+---
+
+# Probando Bookdown
+
+Hola hola. Probando, 1, 2, 3. 
+
+Esta es mi prueba para hacer un libro con bookdown. 
+
+```{r}
+knitr::opts_chunk$set(eval = FALSE)
+```
+
+**¡OJO! DEBO CITAR PAQUETES DE R**

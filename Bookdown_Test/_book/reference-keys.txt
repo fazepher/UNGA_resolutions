@@ -1,0 +1,8 @@
+probando-bookdown
+data
+general-assembly-session-compilation
+download-and-import
+data-cleaning
+resolution-texts
+references
+voting-data
